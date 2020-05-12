@@ -18,4 +18,7 @@ nico.init("nico","test")
 
 nico.createWindow("nico", 128, 128, 4)
 
+loadFont(0, "font.png")
+setFont(0)
+
 nico.run(gameInit, gameUpdate, gameDraw)
