@@ -1,2 +1,2 @@
-# NimSpaceInvaders
-## A space invaders like game created as a Nim learning tool.
+# InvaderNim
+## An arcade space shooter created as a personal Nim learning tool using ftsf's nico framework

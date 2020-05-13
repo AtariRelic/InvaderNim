@@ -11,8 +11,6 @@ var
     xv = 0.0    #player x velocity
     y = 64.0    #player y position
     yv = 0.0    #player y velocity
-    bulletTimer = 0
-    score = 0
 
 type Bullet = object
     x,y: float
@@ -32,13 +30,23 @@ type Gem = object
     shouldBeDestroyed: bool
     ttl: int
 
-var bullets: seq[Bullet]
-var enemies: seq[Enemy]
-var gems: seq[Gem]
-var gameOver: bool
-var cy: float
-
-var enemyTimer: int
+var
+    bulletTimer = 0
+    bullets: seq[Bullet]
+    enemies: seq[Enemy]
+    gems: seq[Gem]
+    gameOver: bool
+    levelComplete: bool
+    gameStart: bool
+    lives = 3
+    cy: float
+    enemyTimer: int
+    gameStartTimer: int
+    levelCompleteTimer: int
+    score = 0
+    scoreThreshold: int
+    levelsCleared = 0
+    enemyVelocity = -0.5 + (0.1 * float(levelsCleared))
 
 #game initialization procedure
 proc gameInit() =
@@ -47,16 +55,21 @@ proc gameInit() =
     bullets = newSeq[Bullet]()
     enemies = newSeq[Enemy]()
     gems = newSeq[Gem]()
+    gameStart = true
     gameOver = false
-    enemyTimer = 180
+    levelComplete = false
+    enemyTimer = 60 * 3
+    levelCompleteTimer = 60 * 5
     x = 64.0
     y = 96.0
     xv = 0.0
     yv = 0.0
     bulletTimer = 0
+    gameStartTimer = 60 * 5
     score = 0
     frame = 0
     cy = 0.0
+    scoreThreshold = 2_000 * (levelsCleared + 1)
 
 proc distance(ax, ay, bx, by: float): float =
     return sqrt(pow(ax - bx, 2) + pow(ay - by, 2))
@@ -64,10 +77,18 @@ proc distance(ax, ay, bx, by: float): float =
 #game updates/inputs
 proc gameUpdate(dt: float32) = 
 
+    if gameStart:
+        gameStartTimer -= 1
+        if gameStartTimer == 0:
+            gameStart = false
+
     frame += 1
 
+    if lives == 0:
+        gameOver = true
+
     # player movement
-    if not gameOver:
+    if not gameOver and not levelComplete:
         if btn(pcLeft):
             xv -= 0.1
         if btn(pcRight):
@@ -87,6 +108,8 @@ proc gameUpdate(dt: float32) =
 
     if btnp(pcY) and gameOver:
         gameInit()
+        levelsCleared = 0
+        lives = 3
         return
 
     x += xv
@@ -98,9 +121,9 @@ proc gameUpdate(dt: float32) =
         x = 8
     if x > 120:
         x = 120
-    if y < cy + 8:
+    if y < cy + 8 and not levelComplete:
         y = cy + 8
-    if y > cy + 120:
+    if y > cy + 120 and not gameStart:
         y = cy + 120
 
     #deacceleration
@@ -109,7 +132,6 @@ proc gameUpdate(dt: float32) =
 
     cy -= 1.0
     y -= 1.0
-
     #move bullets
     for bullet in mitems(bullets):
         bullet.y += bullet.yv
@@ -118,11 +140,14 @@ proc gameUpdate(dt: float32) =
         if bullet.y < cy:
             bullet.shouldBeDestroyed = true
 
-        if bullet.enemy:
+        #enemy bullet collision
+        if bullet.enemy and not levelComplete:
             let distance = distance(x, y, bullet.x, bullet.y)
             if distance < 8:
                 bullet.shouldBeDestroyed = true
-                gameOver = true
+                lives -= 1
+                if lives <= 0:
+                    lives = 0
     
      #move gems
     for gem in mitems(gems):
@@ -140,7 +165,7 @@ proc gameUpdate(dt: float32) =
             gem.shouldBeDestroyed = true
 
         let distance = distance(x, y, gem.x, gem.y)
-        if distance < 8:
+        if distance < 8 and not gameOver:
             gem.shouldBeDestroyed = true
             score += 100
 
@@ -149,8 +174,9 @@ proc gameUpdate(dt: float32) =
         enemy.y += enemy.yv
         enemy.x += enemy.xv
 
-        if enemy.y > cy + 150:
+        if enemy.y > cy + 150 and not levelComplete:
             enemy.shouldBeDestroyed = true
+            lives -= 1
 
         # bullet collision
         for bullet in mitems(bullets):
@@ -167,7 +193,7 @@ proc gameUpdate(dt: float32) =
         # enemy shooting
         enemy.bulletTimer -= 1
         if enemy.bulletTimer <= 0:
-            enemy.bulletTimer = rnd(60, 180)
+            enemy.bulletTimer = rnd(6, 120)
             bullets.add(Bullet(x: enemy.x, y: enemy.y + 8, xv: 0.0, yv: 1.0, enemy: true))
     
     enemies.keepIf() do(a: Enemy) -> bool:
@@ -180,13 +206,19 @@ proc gameUpdate(dt: float32) =
         a.shouldBeDestroyed == false
 
     #spawn enemies
-    enemyTimer -= 1
-    if enemyTimer == 0 and not gameOver:
-        enemyTimer = 60 + rnd(120)
-        enemies.add(Enemy(x: rnd(8.0, 120.0), y: cy - 8.0, xv: 0.0, yv: -0.5, bulletTimer: 60 + rnd(60)))
-    elif enemyTimer == 0 and gameOver:
-        enemyTimer = 30
-        enemies.add(Enemy(x: rnd(8.0, 120.0), y: cy - 8.0, xv: 0.0, yv: -0.5, bulletTimer: 60 + rnd(60)))
+    if not gameStart:
+        enemyTimer -= 1
+        if enemyTimer == 0 and not gameOver:
+            enemyTimer = 60 + rnd(120)
+            enemies.add(Enemy(x: rnd(8.0, 120.0), y: cy - 8.0, xv: 0.0, yv: enemyVelocity, bulletTimer: 60 + rnd(60)))
+        elif enemyTimer == 0 and gameOver and not gameStart:
+            enemyTimer = 30
+            enemies.add(Enemy(x: rnd(8.0, 120.0), y: cy - 8.0, xv: 0.0, yv: enemyVelocity, bulletTimer: 60 + rnd(60)))
+        elif levelComplete == true:
+            enemyTimer = 0
+
+        if score >= scoreThreshold:
+            levelComplete = true
 
 
 #the animation loop
@@ -212,18 +244,51 @@ proc gameDraw() =
         else:
             spr(5, bullet.x - 4, bullet.y, 1, 1)
 
-    setColor(3)
-    print("SCORE: ", 1, cy + 2)
-    print($score, 25, cy + 2)
-
-    #draws the player ship
     if not gameOver:
+
+    #prints score
+        setColor(3)
+        print("SCORE: ", 1, cy + 2)
+        print($score, 25, cy + 2)
+
+    #prints current level
+        print("LEVEL: ", 80, cy + 2)
+        print($(levelsCleared + 1), 105, cy + 2)
+
+    #prints lives
+        spr(6, 98, cy + 117, 2, 2)
+        print(" X ", 110, cy + 120)
+        print($lives, 120, cy + 120)
+
+    #prints GAME/LEVEL START message
+    if gameStart and levelsCleared == 0:
+        setColor(15)
+        print("INVADER NIM HAS COME", 22, cy + 60)
+        print("TO CONQUER EARTH!", 28, cy + 70)
+        print("STOP INVADER NIM!", 28, cy + 80)
+    elif gameStart and levelsCleared > 0:
+        setColor(rnd([14,10,15]))
+        print("LEVEL ", 50, cy + 65)
+        print($(levelsCleared + 1), 75, cy + 65)
+
+    #prints LEVEL COMPLETE message
+    if levelComplete and levelCompleteTimer > 0:
+        setColor(rnd([14,10,15]))
+        print("LEVEL COMPLETE!", 35, cy + 60)
+        levelCompleteTimer -= 1
+        if levelCompleteTimer == 0:
+            levelsCleared += 1
+            gameInit()
+
+    #draws player ship
+    if not gameOver and not gameStart:
         spr(0, x - 8, y - 8, 2, 2)
 
+    #prints GAME OVER message
     if gameOver:
-        setColor(rnd([14,10,15]))
-        print("GAME OVER", 42, cy + 60)
-        print("PRESS C TO RESTART", 25, cy + 70)
+        setColor(15)
+        print("GAME OVER", 45, cy + 65)
+        print("PRESS C TO RESTART", 28, cy + 75)
 
 #initialization
 nico.init("nico","test")
