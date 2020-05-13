@@ -157,6 +157,14 @@ proc gameUpdate(dt: float32) =
         gem.xv *= 0.98
         gem.yv *= 0.98
 
+        if gem.x < 0:
+            gem.xv = -gem.xv
+            gem.x = 0
+
+        if gem.x > 127:
+            gem.xv = -gem.xv
+            gem.x = 127
+
         if gem.y < cy:
             gem.shouldBeDestroyed = true
 
@@ -240,7 +248,7 @@ proc gameDraw() =
     for bullet in bullets:
         if bullet.enemy:
             setColor(if frame mod 10 < 5: 3 else: 4)
-            circfill(bullet.x, bullet.y, 1)
+            circfill(bullet.x, bullet.y, 2)
         else:
             spr(5, bullet.x - 4, bullet.y, 1, 1)
 
