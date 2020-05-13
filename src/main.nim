@@ -66,10 +66,10 @@ proc gameInit() =
     yv = 0.0
     bulletTimer = 0
     gameStartTimer = 60 * 5
-    score = 0
     frame = 0
     cy = 0.0
-    scoreThreshold = 2_000 * (levelsCleared + 1)
+    scoreThreshold = 2 * (2_000 * (levelsCleared + 1))
+    enemyVelocity = -0.5 + (0.1 * float(levelsCleared))
 
 proc distance(ax, ay, bx, by: float): float =
     return sqrt(pow(ax - bx, 2) + pow(ay - by, 2))
@@ -102,7 +102,7 @@ proc gameUpdate(dt: float32) =
     if bulletTimer > 0:
         bulletTimer -= 1
 
-    if btn(pcA) and bulletTimer == 0 and not gameOver:
+    if btn(pcA) and bulletTimer == 0 and not gameOver and not levelComplete:
         bullets.add(Bullet(x: x, y: y, xv: 0.0, yv: -4.0))
         bulletTimer = 30
 
@@ -110,6 +110,7 @@ proc gameUpdate(dt: float32) =
         gameInit()
         levelsCleared = 0
         lives = 3
+        score = 0
         return
 
     x += xv
@@ -201,7 +202,7 @@ proc gameUpdate(dt: float32) =
         # enemy shooting
         enemy.bulletTimer -= 1
         if enemy.bulletTimer <= 0:
-            enemy.bulletTimer = rnd(6, 120)
+            enemy.bulletTimer = rnd(60, 120)
             bullets.add(Bullet(x: enemy.x, y: enemy.y + 8, xv: 0.0, yv: 1.0, enemy: true))
     
     enemies.keepIf() do(a: Enemy) -> bool:
@@ -274,6 +275,7 @@ proc gameDraw() =
         print("INVADER NIM HAS COME", 22, cy + 60)
         print("TO CONQUER EARTH!", 28, cy + 70)
         print("STOP INVADER NIM!", 28, cy + 80)
+        print("ARROW KEYS = MOVE    Z = SHOOT", 4, cy + 100)
     elif gameStart and levelsCleared > 0:
         setColor(rnd([14,10,15]))
         print("LEVEL ", 50, cy + 65)
@@ -285,6 +287,8 @@ proc gameDraw() =
         print("LEVEL COMPLETE!", 35, cy + 60)
         levelCompleteTimer -= 1
         if levelCompleteTimer == 0:
+            if levelsCleared mod 2 != 0:
+                lives += 1
             levelsCleared += 1
             gameInit()
 
