@@ -96,10 +96,10 @@ proc gameUpdate(dt: float32) =
             xv -= 0.3
         if btn(pcRight):
             xv += 0.3
-        #[if btn(pcUp):
+        if btn(pcUp):
             yv -= 0.1
         if btn(pcDown):
-            yv += 0.1]#
+            yv += 0.1
     
     # player shooting
     if bulletTimer > 0:
@@ -194,10 +194,11 @@ proc gameUpdate(dt: float32) =
         for bullet in mitems(bullets):
             if bullet.enemy == false:
                 let distance = distance(bullet.x, bullet.y, enemy.x, enemy.y)
-                if distance < 8:
+                if distance < 10:
                     # enemy hit by bullet
                     enemy.shouldBeDestroyed = true
                     bullet.shouldBeDestroyed = true
+                    score += 100
                     for i in 0..5:
                         gems.add(Gem(x: enemy.x, y: enemy.y, xv: rnd(2.0) - 1.0, yv: rnd(2.0) - 1.0, ttl: 60 * 5))
                     break
