@@ -52,6 +52,7 @@ var
 proc gameInit() =
     setPalette(loadPaletteFromGPL("cga.gpl"))
     loadSpriteSheet(0, "spritesheet.png")
+    setSpritesheet(0)
     bullets = newSeq[Bullet]()
     enemies = newSeq[Enemy]()
     gems = newSeq[Gem]()
@@ -77,6 +78,7 @@ proc distance(ax, ay, bx, by: float): float =
 #game updates/inputs
 proc gameUpdate(dt: float32) = 
 
+    #start of game message and delay
     if gameStart:
         gameStartTimer -= 1
         if gameStartTimer == 0:
@@ -84,28 +86,29 @@ proc gameUpdate(dt: float32) =
 
     frame += 1
 
+    #ends the game if all lives are lost
     if lives == 0:
         gameOver = true
 
     # player movement
     if not gameOver and not levelComplete:
         if btn(pcLeft):
-            xv -= 0.1
+            xv -= 0.3
         if btn(pcRight):
-            xv += 0.1
-        if btn(pcUp):
+            xv += 0.3
+        #[if btn(pcUp):
             yv -= 0.1
         if btn(pcDown):
-            yv += 0.1
+            yv += 0.1]#
     
-    # binds shoot to 'Z'
+    # player shooting
     if bulletTimer > 0:
         bulletTimer -= 1
-
     if btn(pcA) and bulletTimer == 0 and not gameOver and not levelComplete:
         bullets.add(Bullet(x: x, y: y, xv: 0.0, yv: -4.0))
         bulletTimer = 30
 
+    # game reset when lost
     if btnp(pcY) and gameOver:
         gameInit()
         levelsCleared = 0
@@ -122,14 +125,14 @@ proc gameUpdate(dt: float32) =
         x = 8
     if x > 120:
         x = 120
-    if y < cy + 8 and not levelComplete:
+    if y < cy + 8:
         y = cy + 8
-    if y > cy + 120 and not gameStart:
+    if y > cy + 120:
         y = cy + 120
 
     #deacceleration
-    xv *= 0.97  #reduces xv to slow movement if no input
-    yv *= 0.97  #reduces yv to slow movement if no input
+    xv *= 0.9  #reduces xv to slow movement if no input
+    yv *= 0.9  #reduces yv to slow movement if no input
 
     cy -= 1.0
     y -= 1.0
@@ -158,9 +161,9 @@ proc gameUpdate(dt: float32) =
         gem.xv *= 0.98
         gem.yv *= 0.98
 
-        if gem.x < 0:
+        if gem.x < 4:
             gem.xv = -gem.xv
-            gem.x = 0
+            gem.x = 4
 
         if gem.x > 127:
             gem.xv = -gem.xv
@@ -187,7 +190,7 @@ proc gameUpdate(dt: float32) =
             enemy.shouldBeDestroyed = true
             lives -= 1
 
-        # bullet collision
+        # enemy bullet collision
         for bullet in mitems(bullets):
             if bullet.enemy == false:
                 let distance = distance(bullet.x, bullet.y, enemy.x, enemy.y)
@@ -204,7 +207,7 @@ proc gameUpdate(dt: float32) =
         if enemy.bulletTimer <= 0:
             enemy.bulletTimer = rnd(60, 120)
             bullets.add(Bullet(x: enemy.x, y: enemy.y + 8, xv: 0.0, yv: 1.0, enemy: true))
-    
+
     enemies.keepIf() do(a: Enemy) -> bool:
         a.shouldBeDestroyed == false
 
@@ -229,7 +232,6 @@ proc gameUpdate(dt: float32) =
         if score >= scoreThreshold:
             levelComplete = true
 
-
 #the animation loop
 proc gameDraw() =
     #clears the screen
@@ -239,6 +241,7 @@ proc gameDraw() =
 
     #draw enemies
     for enemy in enemies:
+        setSpritesheet(0)
         spr(2, enemy.x - 8, enemy.y - 8, 2, 2)
 
     #draw gems
@@ -294,7 +297,7 @@ proc gameDraw() =
 
     #draws player ship
     if not gameOver and not gameStart:
-        spr(0, x - 8, y - 8, 2, 2)
+        spr(0, x - 8, y, 2, 2)
 
     #prints GAME OVER message
     if gameOver:
